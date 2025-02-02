@@ -12,9 +12,9 @@ func main() {
 	mux := http.NewServeMux()
 	handler := http.FileServer(http.Dir("."))
 	mux.Handle("/app/", http.StripPrefix("/app", cfg.middlewareMetricsInc(handler)))
-	mux.HandleFunc("GET /healthz", handlerReadiness)
-	mux.HandleFunc("GET /metrics", cfg.handlerGetHits)
-	mux.HandleFunc("POST /reset", cfg.handlerResetHits)
+	mux.HandleFunc("GET /api/healthz", handlerReadiness)
+	mux.HandleFunc("GET /admin/metrics", cfg.handlerGetHits)
+	mux.HandleFunc("POST /admin/reset", cfg.handlerResetHits)
 	server := http.Server{Addr: ":8080", Handler: mux}
 	server.ListenAndServe()
 }
