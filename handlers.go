@@ -53,6 +53,7 @@ func handlerValidateChirp(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	response := ResponseValid{Valid: true, statusCode: 200}
+	validString := validateProfanity(chirp.Body)
+	response := ResponseValid{CleanedBody: validString, statusCode: 200}
 	marshalResponse(writer, &response)
 }

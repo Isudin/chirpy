@@ -20,8 +20,8 @@ func (resp *ResponseError) getStatusCode() int {
 }
 
 type ResponseValid struct {
-	statusCode int
-	Valid      bool `json:"valid"`
+	statusCode  int
+	CleanedBody string `json:"cleaned_body"`
 }
 
 func (resp *ResponseValid) getStatusCode() int {
