@@ -10,6 +10,7 @@ type Response interface {
 	getStatusCode() int
 }
 
+// TODO: add omitempty to json tag
 type ResponseError struct {
 	statusCode int
 	Error      string `json:"error"`
@@ -19,6 +20,7 @@ func (resp *ResponseError) getStatusCode() int {
 	return resp.statusCode
 }
 
+// TODO: add omitempty to json tag
 type ResponseValid struct {
 	statusCode  int
 	CleanedBody string `json:"cleaned_body"`
