@@ -6,39 +6,26 @@ import (
 	"net/http"
 )
 
-//TODO: Refactor whole file, remove classes and interfaces and just use two methods instead
-
-type Response interface {
-	getStatusCode() int
-}
-
-// TODO: add omitempty to json tag
-type ResponseError struct {
-	statusCode int
-	Error      string `json:"error"`
-}
-
-func (resp *ResponseError) getStatusCode() int {
-	return resp.statusCode
-}
-
-// TODO: add omitempty to json tag
-type ResponseValid struct {
-	statusCode  int
-	CleanedBody string `json:"cleaned_body"`
-}
-
-func (resp *ResponseValid) getStatusCode() int {
-	return resp.statusCode
-}
-
-// Obsolete
-func marshalResponse(writer http.ResponseWriter, resp Response) {
-	writer.WriteHeader(resp.getStatusCode())
+func respond(writer http.ResponseWriter, statusCode int, resp interface{}) {
+	writer.WriteHeader(statusCode)
 	resBody, err := json.Marshal(resp)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %v", err)
 		return
 	}
 	writer.Write(resBody)
+}
+
+func respondError(writer http.ResponseWriter, statusCode int, msg string, err error) {
+	if err != nil {
+		log.Println(err)
+	} else {
+		log.Printf("Error message: %v\n", msg)
+	}
+
+	type errorResponse struct {
+		Error string `json:"error"`
+	}
+
+	respond(writer, statusCode, errorResponse{Error: msg})
 }

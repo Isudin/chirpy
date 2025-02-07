@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/mail"
 
@@ -40,16 +39,14 @@ func (cfg *apiConfig) handlerReset(writer http.ResponseWriter, request *http.Req
 	cfg.fileserverHits.Store(0)
 	err := cfg.queries.DeleteAllUsers(context.Background())
 	if err != nil {
-		log.Printf("error deleting users: %v", err)
-		writer.WriteHeader(500)
-		writer.Write([]byte("Something went wrong"))
+		respondError(writer, http.StatusInternalServerError, "Error deleting users", err)
+		return
 	}
 
 	err = cfg.queries.DeleteAllChirps(context.Background())
 	if err != nil {
-		log.Printf("error deleting chirps: %v", err)
-		writer.WriteHeader(500)
-		writer.Write([]byte("Something went wrong"))
+		respondError(writer, http.StatusInternalServerError, "Error deleting chirps", err)
+		return
 	}
 
 	writer.Header().Add("Content-Type", "text/plain; charset=utf-8")
@@ -66,15 +63,12 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&chirp)
 	if err != nil {
-		log.Printf("Error decoding parameters: %v", err)
-		response := ResponseError{Error: "Something went wrong", statusCode: 500}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusInternalServerError, "something went wrong", err)
 		return
 	}
 
 	if len(chirp.Body) > 140 {
-		response := ResponseError{Error: "Chirp is too long", statusCode: 400}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusBadRequest, "Chirp is too long", nil)
 		return
 	}
 
@@ -87,15 +81,11 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 
 	createdChirp, err := cfg.queries.CreateChirp(context.Background(), params)
 	if err != nil {
-		log.Println("error creating chirp: %v", err)
-		response := ResponseError{Error: "Something went wrong", statusCode: 500}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
 		return
 	}
 
-	mappedChirp := mapChirp(createdChirp)
-	mappedChirp.statusCode = 201
-	marshalResponse(writer, &mappedChirp)
+	respond(writer, http.StatusCreated, createdChirp)
 }
 
 func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Request) {
@@ -107,29 +97,21 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Re
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&email)
 	if err != nil {
-		log.Printf("Error decoding parameters: %v", err)
-		response := ResponseError{Error: "Something went wrong", statusCode: 500}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
 		return
 	}
 
 	_, err = mail.ParseAddress(email.Email)
 	if err != nil {
-		log.Printf("error parsing email address: %v", err)
-		response := ResponseError{Error: "Invalid email address", statusCode: 400}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusBadRequest, "Invalid email address", err)
 		return
 	}
 
 	dbUser, err := cfg.queries.CreateUser(context.Background(), email.Email)
 	if err != nil {
-		log.Printf("error creating new user: %v", err)
-		response := ResponseError{Error: "Something went wrong", statusCode: 500}
-		marshalResponse(writer, &response)
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
 		return
 	}
 
-	user := mapUser(dbUser)
-	user.statusCode = 201
-	marshalResponse(writer, &user)
+	respond(writer, http.StatusCreated, dbUser)
 }
