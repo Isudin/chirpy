@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+//TODO: Refactor whole file, remove classes and interfaces and just use two methods instead
+
 type Response interface {
 	getStatusCode() int
 }
@@ -30,6 +32,7 @@ func (resp *ResponseValid) getStatusCode() int {
 	return resp.statusCode
 }
 
+// Obsolete
 func marshalResponse(writer http.ResponseWriter, resp Response) {
 	writer.WriteHeader(resp.getStatusCode())
 	resBody, err := json.Marshal(resp)

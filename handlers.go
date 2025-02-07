@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 	"net/mail"
+
+	"github.com/Isudin/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 func handlerReadiness(writer http.ResponseWriter, request *http.Request) {
@@ -42,15 +45,23 @@ func (cfg *apiConfig) handlerReset(writer http.ResponseWriter, request *http.Req
 		writer.Write([]byte("Something went wrong"))
 	}
 
+	err = cfg.queries.DeleteAllChirps(context.Background())
+	if err != nil {
+		log.Printf("error deleting chirps: %v", err)
+		writer.WriteHeader(500)
+		writer.Write([]byte("Something went wrong"))
+	}
+
 	writer.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("OK"))
 }
 
-func handlerValidateChirp(writer http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 	chirp := struct {
-		Body string `json:"body"`
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
 	}{}
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&chirp)
@@ -67,9 +78,24 @@ func handlerValidateChirp(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	validString := validateProfanity(chirp.Body)
-	response := ResponseValid{CleanedBody: validString, statusCode: 200}
-	marshalResponse(writer, &response)
+	validBody := validateProfanity(chirp.Body)
+
+	params := database.CreateChirpParams{
+		Body:   validBody,
+		UserID: chirp.UserID,
+	}
+
+	createdChirp, err := cfg.queries.CreateChirp(context.Background(), params)
+	if err != nil {
+		log.Println("error creating chirp: %v", err)
+		response := ResponseError{Error: "Something went wrong", statusCode: 500}
+		marshalResponse(writer, &response)
+		return
+	}
+
+	mappedChirp := mapChirp(createdChirp)
+	mappedChirp.statusCode = 201
+	marshalResponse(writer, &mappedChirp)
 }
 
 func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Request) {
