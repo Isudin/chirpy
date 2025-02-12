@@ -84,3 +84,21 @@ func (cfg *apiConfig) handlerListChirps(writer http.ResponseWriter, req *http.Re
 
 	respond(writer, http.StatusOK, mapChirps(chirps))
 }
+
+func (cfg *apiConfig) handlerGetChirpById(writer http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	parsedId, err := uuid.Parse(req.PathValue("id"))
+	if err != nil {
+		respondError(writer, http.StatusBadRequest, "Invalid chirp id", err)
+		return
+	}
+
+	chirp, err := cfg.queries.GetChirpById(context.Background(), parsedId)
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	respond(writer, http.StatusOK, mapChirp(chirp))
+}
