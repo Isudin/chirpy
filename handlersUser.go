@@ -17,6 +17,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token,omitempty"`
 }
 
 func mapUser(dbUser database.User) User {
@@ -29,8 +30,9 @@ func mapUser(dbUser database.User) User {
 }
 
 type login struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	ExpiresIn int    `json:"expires_in_seconds"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Request) {
@@ -81,9 +83,9 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	user, err := cfg.queries.GetUserByEmail(context.Background(), login.Email)
+	dbUser, err := cfg.queries.GetUserByEmail(context.Background(), login.Email)
 	if err != nil {
-		if user.ID == uuid.Nil {
+		if dbUser.ID == uuid.Nil {
 			respondError(writer, http.StatusNotFound, "User not found", err)
 			return
 		}
@@ -92,11 +94,23 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	err = auth.CheckPasswordHash(login.Password, user.HashedPassword)
+	err = auth.CheckPasswordHash(login.Password, dbUser.HashedPassword)
 	if err != nil {
 		respondError(writer, http.StatusUnauthorized, "Wrong passoword", err)
 		return
 	}
 
-	respond(writer, http.StatusOK, mapUser(user))
+	expiresIn := time.Hour
+	if login.ExpiresIn > 0 {
+		expiresIn = time.Duration(login.ExpiresIn * int(time.Second))
+	}
+	token, err := auth.MakeJWT(dbUser.ID, cfg.jwtSecret, expiresIn)
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	user := mapUser(dbUser)
+	user.Token = token
+	respond(writer, http.StatusOK, user)
 }

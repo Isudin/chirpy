@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Isudin/chirpy/internal/auth"
 	"github.com/Isudin/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -15,7 +16,7 @@ type Chirp struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Body      string    `json:"body"`
-	UserID    uuid.UUID `json:"user_id"`
+	UserID    uuid.UUID `json:"user_id,omitempty"`
 }
 
 func mapChirp(dbChirp database.Chirp) Chirp {
@@ -41,14 +42,22 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 	defer req.Body.Close()
 
 	var chirp Chirp
-	// chirp := struct {
-	// 	Body   string    `json:"body"`
-	// 	UserID uuid.UUID `json:"user_id"`
-	// }{}
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&chirp)
 	if err != nil {
 		respondError(writer, http.StatusInternalServerError, "something went wrong", err)
+		return
+	}
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, err.Error(), err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, "Error validating token", err)
 		return
 	}
 
@@ -61,7 +70,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 
 	params := database.CreateChirpParams{
 		Body:   validBody,
-		UserID: chirp.UserID,
+		UserID: userId,
 	}
 
 	createdChirp, err := cfg.queries.CreateChirp(context.Background(), params)
