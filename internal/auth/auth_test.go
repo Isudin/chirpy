@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -55,6 +56,62 @@ func TestJWT(t *testing.T) {
 		t.Logf("ID: %v\n", id)
 		if c.id != id {
 			t.Fatalf("Id's doesn't match: %v != %v", c.id, id)
+		}
+	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	type header struct {
+		key   string
+		value string
+	}
+
+	type returnValue struct {
+		value string
+		isErr bool
+	}
+
+	cases := []struct {
+		input    header
+		expected returnValue
+	}{
+		{
+			input:    header{"Authorization", "Bearer validBearer"},
+			expected: returnValue{"validBearer", false},
+		},
+		{
+			input:    header{"Authorization", "Bearer "},
+			expected: returnValue{"", true},
+		},
+		{
+			input:    header{"Authorization", "BearerInvalidBearer"},
+			expected: returnValue{"", true},
+		},
+		{
+			input:    header{"Authorization", ""},
+			expected: returnValue{"", true},
+		},
+		{
+			input:    header{"Authorization", "Basic InvalidAuthType"},
+			expected: returnValue{"", true},
+		},
+		{
+			input:    header{"NotAValidHeader", "Bearer InvalidHeader"},
+			expected: returnValue{"", true},
+		},
+		{
+			input:    header{"", ""},
+			expected: returnValue{"", true},
+		},
+	}
+
+	for i, c := range cases {
+		header := http.Header{}
+		header.Set(c.input.key, c.input.value)
+		result, err := GetBearerToken(header)
+		if result != c.expected.value || (err != nil) != c.expected.isErr {
+			t.Fatalf("\n[%v]\nExpected value: %v\nExpected error: %v\nResult value: %v\nResult has error:%v\n",
+				i, c.expected.value, c.expected.isErr, result, err != nil)
 		}
 	}
 }
