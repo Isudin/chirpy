@@ -13,11 +13,12 @@ import (
 )
 
 type User struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Token     string    `json:"token,omitempty"`
+	Id           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 }
 
 func mapUser(dbUser database.User) User {
@@ -30,9 +31,8 @@ func mapUser(dbUser database.User) User {
 }
 
 type login struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	ExpiresIn int    `json:"expires_in_seconds"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Request) {
@@ -100,11 +100,17 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	expiresIn := time.Hour
-	if login.ExpiresIn > 0 {
-		expiresIn = time.Duration(login.ExpiresIn * int(time.Second))
+	refreshToken, token := createTokens(dbUser.ID, writer, cfg.jwtSecret)
+	if refreshToken == "" || token == "" {
+		return
 	}
-	token, err := auth.MakeJWT(dbUser.ID, cfg.jwtSecret, expiresIn)
+
+	pars := database.CreateRefreshTokenParams{
+		Token:     token,
+		UserID:    dbUser.ID,
+		ExpiresAt: time.Now().Add(60 * 24 * time.Hour),
+	}
+	_, err = cfg.queries.CreateRefreshToken(context.Background(), pars)
 	if err != nil {
 		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
 		return
@@ -112,5 +118,22 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 
 	user := mapUser(dbUser)
 	user.Token = token
+	user.RefreshToken = refreshToken
 	respond(writer, http.StatusOK, user)
+}
+
+func createTokens(userId uuid.UUID, writer http.ResponseWriter, secret string) (refreshToken, token string) {
+	token, err := auth.MakeJWT(userId, secret, time.Hour)
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	refreshToken, err = auth.MakeRefreshToken()
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	return refreshToken, token
 }
