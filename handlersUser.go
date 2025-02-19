@@ -106,7 +106,7 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 	}
 
 	pars := database.CreateRefreshTokenParams{
-		Token:     token,
+		Token:     refreshToken,
 		UserID:    dbUser.ID,
 		ExpiresAt: time.Now().Add(60 * 24 * time.Hour),
 	}

@@ -40,7 +40,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 
 const getTokenData = `-- name: GetTokenData :one
 SELECT token, created_at, updated_at, user_id, expires_at, revoked_at FROM refresh_tokens
-WHERE token = $1
+WHERE token = $1 AND revoked_at IS NULL
 `
 
 func (q *Queries) GetTokenData(ctx context.Context, token string) (RefreshToken, error) {
@@ -55,4 +55,31 @@ func (q *Queries) GetTokenData(ctx context.Context, token string) (RefreshToken,
 		&i.RevokedAt,
 	)
 	return i, err
+}
+
+const refreshToken = `-- name: RefreshToken :exec
+UPDATE refresh_tokens
+SET expires_at = $1
+WHERE token = $2
+`
+
+type RefreshTokenParams struct {
+	ExpiresAt time.Time
+	Token     string
+}
+
+func (q *Queries) RefreshToken(ctx context.Context, arg RefreshTokenParams) error {
+	_, err := q.db.ExecContext(ctx, refreshToken, arg.ExpiresAt, arg.Token)
+	return err
+}
+
+const revokeToken = `-- name: RevokeToken :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW(), updated_at = NOW()
+WHERE token = $1
+`
+
+func (q *Queries) RevokeToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, revokeToken, token)
+	return err
 }
