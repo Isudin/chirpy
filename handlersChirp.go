@@ -45,7 +45,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 	decoder := json.NewDecoder(req.Body)
 	err := decoder.Decode(&chirp)
 	if err != nil {
-		respondError(writer, http.StatusInternalServerError, "something went wrong", err)
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
 		return
 	}
 

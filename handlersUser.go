@@ -137,3 +137,46 @@ func createTokens(userId uuid.UUID, writer http.ResponseWriter, secret string) (
 
 	return refreshToken, token
 }
+
+func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, "Could not read the token", err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, "Error validating token", err)
+		return
+	}
+
+	var login login
+	decoder := json.NewDecoder(req.Body)
+	err = decoder.Decode(&login)
+	if err != nil {
+		respondError(writer, http.StatusBadRequest, "Could not read request body", err)
+		return
+	}
+
+	password, err := auth.HashPassword(login.Password)
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		return
+	}
+
+	pars := database.UpdateUserCredentialsParams{
+		Email:          login.Email,
+		HashedPassword: password,
+		ID:             userId,
+	}
+	user, err := cfg.queries.UpdateUserCredentials(context.Background(), pars)
+	if err != nil {
+		respondError(writer, http.StatusInternalServerError, "Error updating credentials", err)
+		return
+	}
+
+	respond(writer, http.StatusOK, mapUser(user))
+}
