@@ -105,9 +105,54 @@ func (cfg *apiConfig) handlerGetChirpById(writer http.ResponseWriter, req *http.
 
 	chirp, err := cfg.queries.GetChirpById(context.Background(), parsedId)
 	if err != nil {
-		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+		respondError(writer, http.StatusNotFound, "Chirp not found", err)
 		return
 	}
 
 	respond(writer, http.StatusOK, mapChirp(chirp))
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(writer http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, "Could not validate the token", err)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respondError(writer, http.StatusUnauthorized, "Could not validate the token", err)
+		return
+	}
+
+	chirpId, err := uuid.Parse(req.PathValue("chirpID"))
+	if err != nil {
+		respondError(writer, http.StatusForbidden, "Cannot delete the chirp", err)
+		return
+	}
+
+	chirp, err := cfg.queries.GetChirpById(context.Background(), chirpId)
+	if err != nil {
+		respondError(writer, http.StatusNotFound, "Chirp not found", err)
+		return
+	}
+
+	if chirp.UserID != userId {
+		respondError(writer, http.StatusForbidden, "Cannot delete the chirp", err)
+		return
+	}
+
+	pars := database.DeleteChirpParams{
+		ID:     chirpId,
+		UserID: userId,
+	}
+	err = cfg.queries.DeleteChirp(context.Background(), pars)
+	if err != nil {
+		respondError(writer, http.StatusNotFound, "Chirp not found", err)
+		return
+	}
+
+	respond(writer, http.StatusNoContent, err)
 }

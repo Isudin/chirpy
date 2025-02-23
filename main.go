@@ -36,14 +36,15 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
 	mux.HandleFunc("GET /admin/metrics", cfg.handlerGetHits)
 	mux.HandleFunc("POST /admin/reset", cfg.handlerReset)
-	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
 	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
 	mux.HandleFunc("PUT /api/users", cfg.handlerUpdateUser)
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
-	mux.HandleFunc("GET /api/chirps", cfg.handlerListChirps)
-	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirpById)
 	mux.HandleFunc("POST /api/refresh", cfg.handlerRefresh)
 	mux.HandleFunc("POST /api/revoke", cfg.handlerRevoke)
+	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.handlerListChirps)
+	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirpById)
+	mux.HandleFunc("DELETE /api/chirps/{chirpID}", cfg.handlerDeleteChirp)
 	server := http.Server{Addr: ":8080", Handler: mux}
 	server.ListenAndServe()
 }
