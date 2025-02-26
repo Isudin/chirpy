@@ -76,12 +76,20 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
+	return getToken(headers, "Bearer")
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	return getToken(headers, "ApiKey")
+}
+
+func getToken(headers http.Header, tokenType string) (string, error) {
 	token := headers.Get("Authorization")
 	if token == "" {
 		return "", errors.New("no authorization header found")
 	}
 
-	tokenString, isFound := strings.CutPrefix(token, "Bearer ")
+	tokenString, isFound := strings.CutPrefix(token, tokenType+" ")
 	if !isFound {
 		return "", errors.New("invalid authorization header type")
 	}
