@@ -34,7 +34,7 @@ func (cfg *apiConfig) handlerPolkaWebhook(writer http.ResponseWriter, req *http.
 
 	apiKey, err := auth.GetAPIKey(req.Header)
 	if err != nil || apiKey != cfg.polkaKey {
-		respondError(writer, http.StatusUnauthorized, "Incorrect token", err)
+		respondError(writer, http.StatusUnauthorized, "Invalid token", err)
 		return
 	}
 

@@ -85,10 +85,26 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 func (cfg *apiConfig) handlerListChirps(writer http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	chirps, err := cfg.queries.ListChirps(context.Background())
-	if err != nil {
-		respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
-		return
+	userId := req.URL.Query().Get("author_id")
+	var chirps []database.Chirp
+	var err error
+	if userId == "" {
+		chirps, err = cfg.queries.ListChirps(context.Background())
+		if err != nil {
+			respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+			return
+		}
+	} else {
+		id, err := uuid.Parse(userId)
+		if err != nil {
+			respondError(writer, http.StatusBadRequest, "Invalid", err)
+			return
+		}
+		chirps, err = cfg.queries.ListChirpsByAuthor(context.Background(), id)
+		if err != nil {
+			respondError(writer, http.StatusInternalServerError, "Something went wrong", err)
+			return
+		}
 	}
 
 	respond(writer, http.StatusOK, mapChirps(chirps))
