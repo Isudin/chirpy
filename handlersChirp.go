@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/Isudin/chirpy/internal/auth"
@@ -107,7 +108,15 @@ func (cfg *apiConfig) handlerListChirps(writer http.ResponseWriter, req *http.Re
 		}
 	}
 
-	respond(writer, http.StatusOK, mapChirps(chirps))
+	mappedChirps := mapChirps(chirps)
+	sort := req.URL.Query().Get("sort")
+	if sort == "desc" {
+		slices.SortFunc(mappedChirps, func(a, b Chirp) int {
+			return -a.CreatedAt.Compare(b.CreatedAt)
+		})
+	}
+
+	respond(writer, http.StatusOK, mappedChirps)
 }
 
 func (cfg *apiConfig) handlerGetChirpById(writer http.ResponseWriter, req *http.Request) {
